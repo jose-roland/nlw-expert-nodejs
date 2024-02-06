@@ -1,26 +1,21 @@
 import fastify from "fastify";
-import { PrismaClient } from "@prisma/client";
-import { z } from "zod";
+import fastifyCookie from "@fastify/cookie";
+import { createPoll } from "./routes/create-poll";
+import { findPollById } from "./routes/get-poll";
+import { voteOnPoll } from "./routes/vote-on-poll";
 
 const app = fastify();
-const prisma = new PrismaClient();
+const port = 3333;
 
-app.post("/poll", async (req, res) => {
-  const createPollBody = z.object({
-    title: z.string(),
-  });
-
-  const { title } = createPollBody.parse(req.body);
-
-  const poll = await prisma.poll.create({
-    data: {
-      title,
-    },
-  });
-
-  return res.status(201).send({ pollId: poll.id });
+app.register(fastifyCookie, {
+  secret: "laksdjfakQJEKFDJKouqowieOrvcnxzbv",
+  hook: "onRequest",
 });
 
-app.listen({ port: 3333 }).then(() => {
-  console.log("shaco");
+app.register(createPoll);
+app.register(findPollById);
+app.register(voteOnPoll);
+
+app.listen({ port: port }).then(() => {
+  console.log(`Application is running at http://localhost:${port}`);
 });
