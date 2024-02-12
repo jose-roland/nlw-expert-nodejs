@@ -1,11 +1,12 @@
-import z from "zod";
-import { prisma } from "../../lib/prisma";
-import { FastifyInstance } from "fastify";
-import { randomUUID } from "crypto";
-import { redis } from "../../lib/redis";
+import z from 'zod';
+import { prisma } from '../../lib/prisma';
+import { FastifyInstance } from 'fastify';
+import { randomUUID } from 'crypto';
+import { redis } from '../../lib/redis';
+import { vote } from '../../utils/vote.pub-sub';
 
 export async function voteOnPoll(app: FastifyInstance) {
-  app.post("/poll/:pollId/vote", async (req, res) => {
+  app.post('/poll/:pollId/vote', async (req, res) => {
     const voteOnPollBody = z.object({
       pollOptionId: z.string().uuid(),
     });
@@ -39,10 +40,19 @@ export async function voteOnPoll(app: FastifyInstance) {
           },
         });
 
-        await redis.zincrby(pollId, -1, userPreviousVoteOnPoll.pollOptionId);
+        const votes = await redis.zincrby(
+          pollId,
+          -1,
+          userPreviousVoteOnPoll.pollOptionId
+        );
+
+        vote.publish(pollId, {
+          pollOptionId: userPreviousVoteOnPoll.pollOptionId,
+          votes: Number(votes),
+        });
       } else if (userPreviousVoteOnPoll) {
         return res.status(400).send({
-          message: "You already voted on this poll.",
+          message: 'You already voted on this poll.',
         });
       }
     }
@@ -50,8 +60,8 @@ export async function voteOnPoll(app: FastifyInstance) {
     if (!sessionId) {
       sessionId = randomUUID();
 
-      res.setCookie("sessionId", sessionId, {
-        path: "/",
+      res.setCookie('sessionId', sessionId, {
+        path: '/',
         maxAge: 2592000,
         signed: true,
         httpOnly: true,
@@ -66,7 +76,12 @@ export async function voteOnPoll(app: FastifyInstance) {
       },
     });
 
-    await redis.zincrby(pollId, 1, pollOptionId);
+    const votes = await redis.zincrby(pollId, 1, pollOptionId);
+
+    vote.publish(pollId, {
+      pollOptionId,
+      votes: Number(votes),
+    });
 
     return res.status(201).send();
   });

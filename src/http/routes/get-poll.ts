@@ -1,10 +1,10 @@
-import z from "zod";
-import { prisma } from "../../lib/prisma";
-import { FastifyInstance } from "fastify";
-import { redis } from "../../lib/redis";
+import z from 'zod';
+import { prisma } from '../../lib/prisma';
+import { FastifyInstance } from 'fastify';
+import { redis } from '../../lib/redis';
 
 export async function findPollById(app: FastifyInstance) {
-  app.get("/poll/:pollId", async (req, res) => {
+  app.get('/poll/:pollId', async (req, res) => {
     const getPollParams = z.object({
       pollId: z.string().uuid(),
     });
@@ -26,10 +26,10 @@ export async function findPollById(app: FastifyInstance) {
     });
 
     if (!poll) {
-      return res.status(400).send({ message: "Poll not found" });
+      return res.status(400).send({ message: 'Poll not found' });
     }
 
-    const result = await redis.zrange(pollId, 0, -1, "WITHSCORES");
+    const result = await redis.zrange(pollId, 0, -1, 'WITHSCORES');
 
     const votes = result.reduce((obj, pollOption, index) => {
       if (index % 2 === 0) {
